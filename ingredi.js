@@ -10,7 +10,8 @@ var Ingredi = {
 	 */
 	formatUnit: function(unit) {
 
-		// todo: remove trailing . (tsp. vs tsp)
+		// remove trailing . (tsp. vs tsp)
+		unit = unit.replace('.', '');
 
 		// first check for t vs T (only unit where capitalization matters)
 		if (unit == 't') {
@@ -148,7 +149,7 @@ var Ingredi = {
 	 */
 	multiplyAmount: function(original, multiplier, options = null) {
 		// regex for formats 1, 1/2, 1 1/2, or 0.5 followed by a unit
-		let regex = new RegExp(/((\d+ )?(\d+)(([\/\.])(\d+))?) ?([a-zA-Z]+)/, 'g');
+		let regex = new RegExp(/((\d+ )?(\d+)(([\/\.])(\d+))?) ?([a-zA-Z]+\.?)/, 'g');
 
 		let converted = original.replace(regex, (match, p1, p2, p3, p4, p5, p6, p7, offset, string) => {
 
