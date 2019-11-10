@@ -73,7 +73,16 @@ var Ingredi = {
 	 * @param  {object} options
 	 * @return {object}
 	 */
-	convertUnit: function(amount, unit, options = null) {
+	convertUnit: function(amount, unit, options = {}) {
+
+		let defaultOptions = {
+			format: 'auto',
+		};
+
+		// merge in default options
+		options = Object.assign({}, defaultOptions, options);
+
+		// todo: do not convert oz unless liquid/dry (volume/weight) is passed in options
 
 		// first standardize unit format
 		unit = this.formatUnit(unit);
@@ -100,7 +109,7 @@ var Ingredi = {
 			let amountInCups = amount / volumeMap[unit];
 
 			// if a valid unit to convert to was passed in options, use that
-			if (options && options.to && volumeMap.hasOwnProperty(options.to)) {
+			if (options.to && volumeMap.hasOwnProperty(options.to)) {
 				newUnit = options.to;
 			// attempt to auto convert to unit that makes the most sense based on amount
 			} else {
@@ -132,11 +141,110 @@ var Ingredi = {
 			newUnit = unit;
 		}
 
+		// convert to closest fraction
+		if (options.format == 'fraction') {
+			newAmount = this.toFraction(newAmount);
+		// convert to fraction or decimal
+		} else if (options.format == 'auto') {
+			newAmount = this.toFraction(newAmount, false);
+		}
+
 		return {
 			amount: newAmount,
 			unit: newUnit,
 			string: `${newAmount} ${newUnit}`,
 		};
+	},
+
+	/**
+	 * Convert fraction to decimal
+	 * @param  {string}
+	 * @return {number}
+	 */
+	toDecimal: function(fraction) {
+		let regex = new RegExp(/(\d+ )?(\d+)(?:\/(\d+))?/);
+		let pieces = fraction.match(regex);
+		let whole = pieces[1] ? parseInt(pieces[1]) : 0;
+		let numerator = pieces[2];
+		let denominator = pieces[3];
+		return whole + numerator/denominator;
+	},
+
+	/**
+	 * Convert decimal to fraction
+	 * @param  {number}
+	 * @param  {boolean}
+	 * @return {string}
+	 */
+	toFraction: function(decimal, findClosest = true) {
+
+		let fraction = '';
+		let whole = Math.floor(decimal);
+
+		// already a whole number
+		if (whole == decimal) {
+			return whole;
+		} else {
+			decimal = Math.abs(whole - decimal);
+		}
+
+		// round to 2 decimal places
+		let rounded = decimal.toFixed(2)
+
+		// we could do a bunch of math but realistically 1/8 or 1/16 is the most precise measurement we'll use
+		let decimalMap = {
+			'0.88': '7/8',
+			'0.75': '3/4',
+			'0.67': '2/3',
+			'0.63': '5/8',
+			'0.50': '1/2',
+			'0.38': '3/8',
+			'0.33': '1/3',
+			'0.25': '1/4',
+			'0.17': '1/6',
+			'0.13': '1/8',
+			'0.06': '1/16',
+		};
+
+		if (decimalMap.hasOwnProperty(rounded)) {
+			// fraction match
+			fraction = decimalMap[rounded];
+		} else if (findClosest) {
+			// find the closest fraction in our map
+			let closestDecimal = 1;
+			let smallestDelta = 1 - decimal;
+
+			if (decimal <= 0.03) {
+				closestDecimal = 0;
+			} else {
+				Object.keys(decimalMap).forEach(currentDecimal => {
+					let delta = Math.abs(parseFloat(currentDecimal) - decimal);
+					if (delta <= smallestDelta) {
+						smallestDelta = delta;
+						closestDecimal = currentDecimal;
+					}
+				});
+
+				if (closestDecimal == 1) {
+					fraction = 0;
+					whole++;
+				} else {
+					fraction = decimalMap[closestDecimal];
+				}
+			}
+		} else {
+			// no exact fraction match - just return rounded decimal
+			return whole + rounded;
+		}
+
+		// combine with whole number
+		if (whole && fraction) {
+			fraction = `${whole} ${fraction}`;
+		} else if (whole) {
+			fraction = whole;
+		}
+
+		return fraction;
 	},
 
 	/**
@@ -149,28 +257,27 @@ var Ingredi = {
 	 */
 	multiplyAmount: function(original, multiplier, options = null) {
 		// regex for formats 1, 1/2, 1 1/2, or 0.5 followed by a unit
-		let regex = new RegExp(/((\d+ )?(\d+)(([\/\.])(\d+))?) ?([a-zA-Z]+\.?)/, 'g');
+		let regex = new RegExp(/((?:\d+ )?\d+(?:[\/\.]\d+)?) ?([a-zA-Z]+\.?)/, 'g');
 
-		let converted = original.replace(regex, (match, p1, p2, p3, p4, p5, p6, p7, offset, string) => {
+		// replace each match with converted amount
+		let converted = original.replace(regex, (match, p1, p2, offset, string) => {
 
 			let amount = p1;
-			let unit = p7;
-			let sep = p5;
+			let unit = p2;
+			let convertOptions = {};
 
-			let newAmount;
-
-			// handle fraction
-			if (sep == '/') {
-				let whole = p2 ? parseInt(p2) : 0;
-				let numerator = p3;
-				let denominator = p6;
-				newAmount = (whole + numerator/denominator) * multiplier;
-				// todo: convert back to fraction?
-			} else {
-				newAmount = amount * multiplier;
+			// fraction
+			if (amount.indexOf('/') !== -1) {
+				amount = this.toDecimal(amount);
+				convertOptions.format = 'fraction';
+			// decimal
+			} else if (amount.indexOf('.') !== -1) {
+				convertOptions.format = 'decimal';
 			}
 
-			return this.convertUnit(newAmount, unit).string;
+			let newAmount = amount * multiplier;
+
+			return this.convertUnit(newAmount, unit, convertOptions).string;
 		});
 
 		return converted;
