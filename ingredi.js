@@ -4,6 +4,30 @@
 var Ingredi = {
 
 	/**
+	 * Parse amounts and units from a string
+	 * @param  {string}
+	 * @return {array|string}
+	 */
+	parse: function(string) {
+		// regex for formats 1, 1/2, 1 1/2, or 0.5 followed by a unit
+		// todo: handle special fraction chars like ½ - see http://unicodefractions.com/
+		let regex = new RegExp(/((?:\d+ )?\d+(?:[\/\.]\d+)?) ?([a-zA-Z]+\.?)/, 'g');
+		let matches = [...string.matchAll(regex)];
+
+		if (matches.length) {
+			return matches.map(match => {
+				return {
+					amount: match[1],
+					unit: match[2],
+					string: match[0],
+				};
+			});
+		} else {
+			return string;
+		}
+	},
+
+	/**
 	 * Convert common units/abbreviations to a standardized format
 	 * @param  {string} unit
 	 * @return {string}
@@ -248,39 +272,76 @@ var Ingredi = {
 	},
 
 	/**
-	 * Replace amounts in a string with new amounts multiplied by a number
+	 * Multiply an amount and convert to new units
 	 * (to get ingredient amounts for half, double, etc. recipe)
-	 * @param  {string} original
+	 * @param  {number} amount
+	 * @param  {string} unit
 	 * @param  {number} multiplier
 	 * @param  {object} options
-	 * @return {string} : new string with original amounts replaced with converted amounts
+	 * @return {object}
 	 */
-	multiplyAmount: function(original, multiplier, options = null) {
-		// regex for formats 1, 1/2, 1 1/2, or 0.5 followed by a unit
-		let regex = new RegExp(/((?:\d+ )?\d+(?:[\/\.]\d+)?) ?([a-zA-Z]+\.?)/, 'g');
+	multiplyAmount: function(amount, unit, multiplier, options = {}) {
 
-		// replace each match with converted amount
-		let converted = original.replace(regex, (match, p1, p2, offset, string) => {
+		let defaultOptions = {
+			convert: true,
+			flags: '',
+		};
 
-			let amount = p1;
-			let unit = p2;
-			let convertOptions = {};
+		// merge in default options
+		options = Object.assign({}, defaultOptions, options);
 
+		let convertOptions = {};
+
+		if (typeof amount == 'string') {
 			// fraction
 			if (amount.indexOf('/') !== -1) {
 				amount = this.toDecimal(amount);
 				convertOptions.format = 'fraction';
 			// decimal
 			} else if (amount.indexOf('.') !== -1) {
+				amount = parseFloat(amount);
 				convertOptions.format = 'decimal';
+			} else {
+				amount = parseInt(amount);
 			}
+		}
 
-			let newAmount = amount * multiplier;
+		if (typeof multiplier == 'string') {
+			multiplier = parseFloat(multiplier);
+		}
 
-			return this.convertUnit(newAmount, unit, convertOptions).string;
-		});
+		let newAmount = amount * multiplier;
 
-		return converted;
+		if (options.convert) {
+			return this.convertUnit(newAmount, unit, convertOptions);
+		} else {
+			return {
+				amount: newAmount,
+				unit: unit,
+				string: `${newAmout} ${unit}`,
+			}
+		}
+	},
+
+	/**
+	 * Replace amounts in a string with multiplied amounts
+	 * @param  {string} original
+	 * @param  {number} multiplier
+	 * @param  {object} options
+	 * @return {string} : new string with original amounts replaced with converted amounts
+	 */
+	multiplyAndReplace: function(original, multiplier, options = {}) {
+		let matches = this.parse(original);
+		let replaced = original;
+		if (typeof matches == 'string') {
+			return original;
+		} else {
+			matches.forEach(match => {
+				let multiplied = this.multiplyAmount(match.amount, match.unit, multiplier);
+				replaced = original.replace(match.string, multiplied.string);
+			});
+			return replaced;
+		}
 	},
 
 }
