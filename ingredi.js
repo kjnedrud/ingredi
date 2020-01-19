@@ -384,22 +384,21 @@ var Ingredi = {
 
 	/**
 	 * Replace amounts in a string with multiplied amounts
-	 * @param  {string} original
+	 * @param  {string} text
 	 * @param  {number} multiplier
 	 * @param  {object} options
 	 * @return {string} : new string with original amounts replaced with converted amounts
 	 */
-	multiplyAndReplace: function(original, multiplier, options = {}) {
-		let matches = this.parse(original);
-		let replaced = original;
+	multiplyAndReplace: function(text, multiplier, options = {}) {
+		let matches = this.parse(text);
 		if (typeof matches == 'string') {
-			return original;
+			return text;
 		} else {
 			matches.forEach(match => {
-				let multiplied = this.multiplyAmount(match.amount, match.unit, multiplier);
-				replaced = original.replace(match.string, multiplied.string);
+				let multiplied = this.multiplyAmount(match.amount, match.unit, multiplier, options);
+				text = text.replace(match.string, multiplied.string);
 			});
-			return replaced;
+			return text;
 		}
 	},
 
