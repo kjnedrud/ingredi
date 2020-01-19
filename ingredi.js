@@ -11,6 +11,7 @@ var Ingredi = {
 	parse: function(string) {
 		// regex for formats 1, 1/2, 1 1/2, or 0.5 followed by a unit
 		// todo: handle special fraction chars like ½ - see http://unicodefractions.com/
+		// todo: handle strings like "5-7 TBSP" or "5 to 7 TBSP"
 		let regex = new RegExp(/((?:\d+ )?\d+(?:[\/\.]\d+)?) ?([a-zA-Z]+\.?)/, 'g');
 		let matches = [...string.matchAll(regex)];
 
@@ -81,8 +82,15 @@ var Ingredi = {
 			case 'gallon':
 			case 'gallons':
 				return 'gal';
+			case 'lb':
+			case 'lbs':
+			case 'pound':
+			case 'pounds':
+				return 'lb';
+			case 'stick':
+			case 'sticks':
+				return 'stick';
 			// todo: metric units
-			// todo: weight units
 			default:
 				return unit;
 		}
@@ -99,66 +107,115 @@ var Ingredi = {
 	 */
 	convertUnit: function(amount, unit, options = {}) {
 
+		let newAmount, newUnit;
 		let defaultOptions = {
 			format: 'auto',
+			flags: '',
 		};
+		let unitMap = {};
 
 		// merge in default options
 		options = Object.assign({}, defaultOptions, options);
 
-		// todo: do not convert oz unless liquid/dry (volume/weight) is passed in options
-
 		// first standardize unit format
 		unit = this.formatUnit(unit);
 
-		// volume conversion map
-		let volumeMap = {
-			'tsp': 16 * 3, // 3 tsp = 1 tbsp
-			'tbsp': 16,
-			'oz': 16 / 2, // 1/2 fl oz = 1 tbsp
-			'c': 1,
-			'pt': 1/2,
-			'qt': 1/4,
-			'gal': 1/16,
-		};
-
-		// todo: dry ingredient volume to weight
-		// todo: fl oz (volume) vs. oz (weight)
-
-		let newAmount, newUnit;
-
-		// only convert units that are in our map
-		if (volumeMap.hasOwnProperty(unit)) {
-
-			let amountInCups = amount / volumeMap[unit];
-
-			// if a valid unit to convert to was passed in options, use that
-			if (options.to && volumeMap.hasOwnProperty(options.to)) {
-				newUnit = options.to;
-			// attempt to auto convert to unit that makes the most sense based on amount
+		// if oz and unsure if weight or volume, do not convert
+		if (unit == 'oz' && (!options.type || !options.flags.includes('liquor'))) {
+			options.format = null;
+		} else if (options.type == 'weight') {
+			// weight conversion map
+			unitMap = {
+				'oz': 16,
+				'lb': 1,
+			};
+		// convert between volume and weight
+		} else if (((unit == 'oz' && options.to == 'c') || (unit == 'c' && options.to == 'oz')) && options.flags.includes('flour')) {
+			// volume to weight conversion map for flour
+			if (options.flags.includes('rye')) {
+				// 3.5 oz to 1 cup flour (rye)
+				unitMap = {
+					'c': 1,
+					'oz': 3.5,
+				};
 			} else {
-
-				// if >= 8 c (2 qt), use qt
-				if (amountInCups >= 8) {
-					newUnit = 'qt';
-				// if < 1/4 c (4 tbsp), use tbsp or tsp
-				} else if (amountInCups < 1/4) {
-					// if < 1 tbsp (3 tsp), use tsp
-					if (amountInCups < 1/16) {
-						newUnit = 'tsp';
-					// if >= 3 tsp (1 tbsp), use tbsp
-					} else {
-						newUnit = 'tbsp';
-					}
-				// if >= 4 tbsp (1/4 c) or < 2 qt (8 c), use c
-				} else {
-					newUnit = 'c';
-				}
+				// 4.5 oz to 1 cup flour (all purpose or wheat)
+				unitMap = {
+					'c': 1,
+					'oz': 4.5,
+				};
 			}
+		} else if (options.flags.includes('butter')) {
+			// butter conversion map
+			unitMap = {
+				'tbsp': 8,
+				'c': 1/2,
+				'stick': 1,
+				'oz': 4,
+				'lb': 1/4,
+			};
+		} else {
+			// volume conversion map
+			unitMap = {
+				'tsp': 16 * 3, // 3 tsp = 1 tbsp
+				'tbsp': 16,
+				'oz': 16 / 2, // 1/2 fl oz = 1 tbsp
+				'c': 1,
+				'pt': 1/2,
+				'qt': 1/4,
+				'gal': 1/16,
+			};
+		}
 
-			// calulate new amount based on new unit
-			newAmount = amountInCups * volumeMap[newUnit];
+		// if unit to convert to was passed in options, use that
+		if (options.to) {
+			newUnit = options.to;
+		// attempt to automatically choose the unit that makes most sense based on amount
+		} else if (unitMap.hasOwnProperty('c')) {
 
+			let amountInCups = unitMap['c'] * amount / unitMap[unit];
+
+			// default: c
+			newUnit = 'c';
+
+			// if >= 8 c (2 qt), use qt
+			if (amountInCups >= 8) {
+				newUnit = 'qt';
+			// if < 1 tbsp (3 tsp), use tsp
+			} else if (amountInCups < 1/16) {
+				newUnit = 'tsp';
+			// if <= 1/2 c (4 oz), use oz for liquor
+			} else if (amountInCups <= 1/2 && options.flags.includes('liquor')) {
+				newUnit = 'oz';
+			// butter units
+			} else if (options.flags.includes('butter')) {
+				// if < 1/2 c (1 stick), use tbsp
+				if (amountInCups < 1/2) {
+					newUnit = 'tbsp';
+				} else {
+					newUnit = 'stick';
+				}
+				// todo: smarter butter conversion - use 1/2 stick increments, or formats like 1 stick + 2 tbsp
+			// if < 1/4 c (4 tbsp), use tbsp
+			} else if (amountInCups < 1/4) {
+				newUnit = 'tbsp';
+			}
+		} else if (unitMap.hasOwnProperty('lb')) {
+
+			let amountInOz = unitMap['oz'] * amount / unitMap[unit];
+
+			// if <= 16 oz (1 lb), use lb
+			if (amountInOz >= 16) {
+				newUnit = 'lb';
+			} else {
+				newUnit = 'oz';
+			}
+		}
+
+		// if both units are in the unit map, calculate the conversion factor and convert to new unit
+		if (unitMap.hasOwnProperty(unit) && unitMap.hasOwnProperty(newUnit)) {
+			let conversionFactor = unitMap[newUnit] / unitMap[unit];
+			newAmount = amount * conversionFactor;
 		// if unit is not in our map, do not convert
 		} else {
 			newAmount = amount;
@@ -290,7 +347,9 @@ var Ingredi = {
 		// merge in default options
 		options = Object.assign({}, defaultOptions, options);
 
-		let convertOptions = {};
+		let convertOptions = {
+			flags: options.flags,
+		};
 
 		if (typeof amount == 'string') {
 			// fraction
