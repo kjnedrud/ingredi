@@ -1,0 +1,17 @@
+{
+  "name": "ingredi",
+  "version": "0.1",
+  "description": "Lightweight JS library for parsing and converting ingredients",
+  "main": "ingredi.js",
+  "repository": "https://github.com/kjnedrud/ingredi",
+  "author": "Kirsten Nedrud <kjnedrud@gmail.com>",
+  "license": "MIT",
+  "private": false,
+  "devDependencies": {
+    "jest": "^26.4.2"
+  },
+  "scripts": {
+    "test": "jest"
+  }
+}
+

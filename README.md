@@ -2,8 +2,6 @@
 
 Super simple ingredient parsing and conversion in JavaScript
 
-Current version: 0.1
-
 ## Example Usage
 
 **Doubling a recipe?**
@@ -23,6 +21,11 @@ Result: `3 c gin`
 ```Ingredi.convertUnit(3/4, 'cup', {to: 'tbsp'})```
 
 Result: `{amount: 12, unit: "tbsp", string: "12 tbsp"}`
+
+## Tests
+
+1. Install dependencies: `yarn install`
+2. Run tests: `yarn test`
 
 ## Coming Soon
 * better documentation

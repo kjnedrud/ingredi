@@ -403,3 +403,5 @@ var Ingredi = {
 	},
 
 }
+
+module.exports = Ingredi;
