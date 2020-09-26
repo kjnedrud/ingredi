@@ -3,34 +3,189 @@ const Ingredi = require('../ingredi');
 // parsing text strings to get amounts and units
 describe('parsing text', () => {
 
-	test('parse amounts with fractions like "1/2"', () => {
-		expect(Ingredi.parse('1/2 c sugar')).toMatchObject(
-			[{
-				amount: '1/2',
+	let numberFormats = {
+		// whole numbers
+		'whole numbers': [
+			{
+				amount: '1',
 				unit: 'c',
-				string: '1/2 c',
-			}]
-		);
-	});
-
-	test('parse amounts with mixed fractions and whole numbers like "1 1/2"', () => {
-		expect(Ingredi.parse('1 1/2 c flour')).toMatchObject(
-			[{
-				amount: '1 1/2',
+				string: '1c',
+			},
+			{
+				amount: '12',
 				unit: 'c',
-				string: '1 1/2 c',
-			}]
-		);
-	});
-
-	test('parse amounts with decimals like "1.5"', () => {
-		expect(Ingredi.parse('1.5 c sugar')).toMatchObject(
-			[{
+				string: '12c',
+			},
+			{
+				amount: '1',
+				unit: 'c',
+				string: '1 c',
+			},
+			{
+				amount: '12',
+				unit: 'c',
+				string: '12 c',
+			},
+		],
+		// decimals
+		'decimals': [
+			{
+				amount: '.5',
+				unit: 'c',
+				string: '.5c',
+			},
+			{
+				amount: '0.5',
+				unit: 'c',
+				string: '0.5c',
+			},
+			{
+				amount: '1.5',
+				unit: 'c',
+				string: '1.5c',
+			},
+			{
+				amount: '1.25',
+				unit: 'c',
+				string: '1.25c',
+			},
+			{
+				amount: '.5',
+				unit: 'c',
+				string: '.5 c',
+			},
+			{
+				amount: '0.5',
+				unit: 'c',
+				string: '0.5 c',
+			},
+			{
 				amount: '1.5',
 				unit: 'c',
 				string: '1.5 c',
-			}]
-		);
+			},
+			{
+				amount: '1.25',
+				unit: 'c',
+				string: '1.25 c',
+			},
+		],
+		// fractions
+		'fractions': [
+			{
+				amount: '1/2',
+				unit: 'c',
+				string: '1/2c',
+			},
+			{
+				amount: '3/2',
+				unit: 'c',
+				string: '3/2c',
+			},
+			{
+				amount: '1/12',
+				unit: 'c',
+				string: '1/12c',
+			},
+			{
+				amount: '1/2',
+				unit: 'c',
+				string: '1/2 c',
+			},
+			{
+				amount: '3/2',
+				unit: 'c',
+				string: '3/2 c',
+			},
+			{
+				amount: '1/12',
+				unit: 'c',
+				string: '1/12 c',
+			},
+		],
+		// mixed fractions
+		'mixed fractions': [
+			{
+				amount: '1 1/2',
+				unit: 'c',
+				string: '1 1/2c',
+			},
+			{
+				amount: '1 1/12',
+				unit: 'c',
+				string: '1 1/12c',
+			},
+			{
+				amount: '12 1/2',
+				unit: 'c',
+				string: '12 1/2c',
+			},
+			{
+				amount: '12 1/12',
+				unit: 'c',
+				string: '12 1/12c',
+			},
+			{
+				amount: '1 1/2',
+				unit: 'c',
+				string: '1 1/2 c',
+			},
+			{
+				amount: '1 1/12',
+				unit: 'c',
+				string: '1 1/12 c',
+			},
+			{
+				amount: '12 1/2',
+				unit: 'c',
+				string: '12 1/2 c',
+			},
+			{
+				amount: '12 1/12',
+				unit: 'c',
+				string: '12 1/12 c',
+			},
+		],
+		// fraction symbols
+		'fraction symbols': [
+			{
+				amount: '1/2',
+				unit: 'c',
+				string: '½c',
+			},
+			{
+				amount: '1 1/2',
+				unit: 'c',
+				string: '1½c',
+			},
+			{
+				amount: '1/2',
+				unit: 'c',
+				string: '½ c',
+			},
+			{
+				amount: '1 1/2',
+				unit: 'c',
+				string: '1 ½c',
+			},
+			{
+				amount: '1 1/2',
+				unit: 'c',
+				string: '1 ½ c',
+			},
+		],
+	};
+
+	// loop through number formats
+	Object.entries(numberFormats).forEach(entry => {
+		let format = entry[0];
+		let values = entry[1];
+
+		values.forEach(val => {
+			test(`parse amounts with ${format} like "${val.string}"`, () => {
+				expect(Ingredi.parse(val.string)).toMatchObject([val]);
+			});
+		})
 	});
 
 	test('parse unknown units', () => {
