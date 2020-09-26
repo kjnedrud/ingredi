@@ -11,7 +11,7 @@ var Ingredi = {
 	parse: function(string) {
 		// note: double backslashes are required in pattern strings so they will be treated as literal backslashes when combining to build the regex
 
-		// fraction: 1/2, 1 1/2, 1½, 1 ½
+		// fraction: 1/2, ½, 1 1/2, 1½, 1 ½
 		let fractionPattern = `(?:\\d+ )?\\d+\\/\\d+|(?:\\d+ ?)?[½⅓¼⅛⅔¾]`;
 
 		// decimal: .5, 0.5, 1.5
@@ -21,8 +21,7 @@ var Ingredi = {
 		let numberPattern = `\\d+|${fractionPattern}|${decimalPattern}`;
 
 		// range: 1/2-1, 1 1/2 - 2, 1½-2, 1½ - 2, .5-1, 1 to 2
-		// todo: figure out how to handle ranges - probably need to split left and right sides and treat individually in conversions/calculations
-		let rangePattern = `${numberPattern}(?:-| - | to )${numberPattern}`;
+		let rangePattern = `(${numberPattern})(-| - | to )(${numberPattern})`;
 
 		// combine pattern strings into one big gnarly regex
 		let regex = new RegExp(`(${rangePattern}|${numberPattern}) ?([a-zA-Z]+\\.?)`, 'g');
@@ -30,12 +29,28 @@ var Ingredi = {
 		let matches = [...string.matchAll(regex)];
 
 		if (matches.length) {
+
 			return matches.map(match => {
 				let parsed = {
 					amount: this.convertFractionSymbols(match[1]),
-					unit: match[2],
+					unit: match[5],
 					string: match[0],
 				};
+
+				// check for range
+				if (match[2] && match[3] && match[4]) {
+					parsed.range = {
+						left: {
+							amount: this.convertFractionSymbols(match[2]),
+							string: match[2],
+						},
+						sep: match[3],
+						right: {
+							amount: this.convertFractionSymbols(match[4]),
+							string: match[4],
+						},
+					};
+				}
 
 				return parsed;
 			});
@@ -439,8 +454,25 @@ var Ingredi = {
 			return text;
 		} else {
 			matches.forEach(match => {
-				let multiplied = this.multiplyAmount(match.amount, match.unit, multiplier, options);
-				text = text.replace(match.string, multiplied.string);
+
+				if (match.range) {
+					// if amount is a range, multiply left and right sides separately
+					let multipliedLeft = this.multiplyAmount(match.range.left.amount, match.unit, multiplier, options);
+					let multipliedRight = this.multiplyAmount(match.range.right.amount, match.unit, multiplier, options);
+
+					if (multipliedLeft.unit == multipliedRight.unit) {
+						// if both sides are the same unit, only include unit on right side
+						text = text.replace(match.string, `${multipliedLeft.amount}${match.range.sep}${multipliedRight.string}`)
+
+					} else {
+						// if units are different, must include on both sides
+						text = text.replace(match.string, `${multipliedLeft.string}${match.range.sep}${multipliedRight.string}`)
+					}
+
+				} else if (match.amount) {
+					let multiplied = this.multiplyAmount(match.amount, match.unit, multiplier, options);
+					text = text.replace(match.string, multiplied.string);
+				}
 			});
 			return text;
 		}

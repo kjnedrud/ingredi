@@ -174,6 +174,25 @@ describe('parsing text', () => {
 				string: '1 ½ c',
 			},
 		],
+		// ranges
+		'ranges': [
+
+			{
+				amount: '1-2',
+				range: {
+					left: {
+						amount: '1',
+						string: '1',
+					},
+					right: {
+						amount: '2',
+						string: '2',
+					},
+				},
+				unit: 'c',
+				string: '1-2c',
+			},
+		],
 	};
 
 	// loop through number formats
@@ -299,3 +318,26 @@ describe('formatting units', () => {
 
 });
 
+// multiplying ranges
+describe('multiplying ranges', () => {
+
+	test('multiply ranges by a whole number', () => {
+		expect(Ingredi.multiplyAndReplace('1-2 c', 2)).toBe('2-4 c');
+	});
+
+	test('multiply ranges by a fraction', () => {
+		expect(Ingredi.multiplyAndReplace('2-4c', 1/2)).toBe('1-2 c');
+		expect(Ingredi.multiplyAndReplace('1-2c', 1/2)).toBe('1/2-1 c');
+		expect(Ingredi.multiplyAndReplace('1.5-3c', 1/3)).toBe('0.5-1 c');
+	});
+
+	test('multiply ranges by a decimal', () => {
+		expect(Ingredi.multiplyAndReplace('2-4c', .5)).toBe('1-2 c');
+		expect(Ingredi.multiplyAndReplace('1 to 2 cups', 0.5)).toBe('1/2 to 1 c');
+		expect(Ingredi.multiplyAndReplace('1 - 2 c', 1.5)).toBe('1 1/2 - 3 c');
+	});
+
+	test('multiply ranges and convert each side to different units', () => {
+		expect(Ingredi.multiplyAndReplace('1 - 3 tbsp', 1/3)).toBe('1 tsp - 1 tbsp');
+	});
+});
