@@ -9,19 +9,35 @@ var Ingredi = {
 	 * @return {array|string}
 	 */
 	parse: function(string) {
-		// regex for formats 1, 1/2, 1 1/2, or 0.5 followed by a unit
-		// todo: handle special fraction chars like ½ - see http://unicodefractions.com/
-		// todo: handle strings like "5-7 TBSP" or "5 to 7 TBSP"
-		let regex = new RegExp(/((?:\d+ )?\d+(?:[\/\.]\d+)?) ?([a-zA-Z]+\.?)/, 'g');
+		// note: double backslashes are required in pattern strings so they will be treated as literal backslashes when combining to build the regex
+
+		// fraction: 1/2, 1 1/2, 1½, 1 ½
+		let fractionPattern = `(?:\\d+ )?\\d+\\/\\d+|(?:\\d+ ?)?[½⅓¼⅛⅔¾]`;
+
+		// decimal: .5, 0.5, 1.5
+		let decimalPattern = `\\d*\\.\\d+`;
+
+		// whole number, fraction, or decimal
+		let numberPattern = `\\d+|${fractionPattern}|${decimalPattern}`;
+
+		// range: 1/2-1, 1 1/2 - 2, 1½-2, 1½ - 2, .5-1, 1 to 2
+		// todo: figure out how to handle ranges - probably need to split left and right sides and treat individually in conversions/calculations
+		let rangePattern = `${numberPattern}(?:-| - | to )${numberPattern}`;
+
+		// combine pattern strings into one big gnarly regex
+		let regex = new RegExp(`(${rangePattern}|${numberPattern}) ?([a-zA-Z]+\\.?)`, 'g');
+
 		let matches = [...string.matchAll(regex)];
 
 		if (matches.length) {
 			return matches.map(match => {
-				return {
-					amount: match[1],
+				let parsed = {
+					amount: this.convertFractionSymbols(match[1]),
 					unit: match[2],
 					string: match[0],
 				};
+
+				return parsed;
 			});
 		} else {
 			return string;
@@ -326,6 +342,34 @@ var Ingredi = {
 		}
 
 		return fraction;
+	},
+
+	/**
+	 * Replace all the fraction symbols in a string with numeric equivalent values
+	 * @param  {String} text
+	 * @return {String}
+	 */
+	convertFractionSymbols: function(text) {
+		let fractionMap = {
+			'½' : '1/2',
+			'⅓' : '1/3',
+			'¼' : '1/4',
+			'⅛' : '1/8',
+			'⅔' : '2/3',
+			'¾' : '3/4',
+		};
+
+		let fractionSymbols = Object.keys(fractionMap);
+		let fractionSymbolRegex = new RegExp(` ?[${fractionSymbols.join('')}]`, 'g');
+
+		// replace fraction symbols with their mapped values
+		text = text.replace(fractionSymbolRegex, (match) => {
+			// make sure there is a leading space so "1½" becomes "1 1/2" instead of "11/2"
+			return ' ' + fractionMap[match.trim()];
+		});
+
+		// trim any extra leading space if there was nothing before it
+		return text.trim();
 	},
 
 	/**
