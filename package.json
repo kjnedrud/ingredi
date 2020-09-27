@@ -1,6 +1,6 @@
 {
   "name": "ingredi",
-  "version": "0.1",
+  "version": "0.1.0",
   "description": "Lightweight JS library for parsing and converting ingredients",
   "main": "ingredi.js",
   "repository": "https://github.com/kjnedrud/ingredi",
