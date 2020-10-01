@@ -318,6 +318,55 @@ describe('formatting units', () => {
 
 });
 
+// converting amounts from one unit to another
+describe('converting volume automatically to the correct unit', () => {
+
+	test('convert >= 8 cups into quarts', () => {
+		expect(Ingredi.convertUnit(8, 'c')).toHaveProperty('unit', 'qt');
+		expect(Ingredi.convertUnit(9, 'c')).toHaveProperty('unit', 'qt');
+		expect(Ingredi.convertUnit(4, 'pt')).toHaveProperty('unit', 'qt');
+		expect(Ingredi.convertUnit(5, 'pt')).toHaveProperty('unit', 'qt');
+		expect(Ingredi.convertUnit(2, 'qt')).toHaveProperty('unit', 'qt');
+		expect(Ingredi.convertUnit(3, 'qt')).toHaveProperty('unit', 'qt');
+		expect(Ingredi.convertUnit(1/2, 'gal')).toHaveProperty('unit', 'qt');
+		expect(Ingredi.convertUnit(0.75, 'gal')).toHaveProperty('unit', 'qt');
+		expect(Ingredi.convertUnit(128, 'tbsp')).toHaveProperty('unit', 'qt');
+		expect(Ingredi.convertUnit(129, 'tbsp')).toHaveProperty('unit', 'qt');
+		expect(Ingredi.convertUnit(384, 'tsp')).toHaveProperty('unit', 'qt');
+		expect(Ingredi.convertUnit(385, 'tsp')).toHaveProperty('unit', 'qt');
+	});
+
+	test('convert >= 4 tbsp and < 8 c into cups', () => {
+		expect(Ingredi.convertUnit(1/4, 'c')).toHaveProperty('unit', 'c');
+		expect(Ingredi.convertUnit(3, 'pt')).toHaveProperty('unit', 'c');
+		expect(Ingredi.convertUnit(.5, 'pt')).toHaveProperty('unit', 'c');
+		expect(Ingredi.convertUnit(1.5, 'qt')).toHaveProperty('unit', 'c');
+		expect(Ingredi.convertUnit(1, 'qt')).toHaveProperty('unit', 'c');
+		expect(Ingredi.convertUnit(.5, 'qt')).toHaveProperty('unit', 'c');
+		expect(Ingredi.convertUnit(1/4, 'pt')).toHaveProperty('unit', 'c');
+		expect(Ingredi.convertUnit(0.4, 'gal')).toHaveProperty('unit', 'c');
+		expect(Ingredi.convertUnit(1/4, 'gal')).toHaveProperty('unit', 'c');
+		expect(Ingredi.convertUnit(4, 'tbsp')).toHaveProperty('unit', 'c');
+		expect(Ingredi.convertUnit(5, 'tbsp')).toHaveProperty('unit', 'c');
+		expect(Ingredi.convertUnit(12, 'tsp')).toHaveProperty('unit', 'c');
+		expect(Ingredi.convertUnit(13, 'tsp')).toHaveProperty('unit', 'c');
+	});
+
+	test('convert < 1/4 cup and >= 1 tbsp to tbsp', () => {
+		expect(Ingredi.convertUnit(1/5, 'c')).toHaveProperty('unit', 'tbsp');
+		expect(Ingredi.convertUnit(3, 'tsp')).toHaveProperty('unit', 'tbsp');
+		expect(Ingredi.convertUnit(4, 'tsp')).toHaveProperty('unit', 'tbsp');
+	});
+
+	test('convert < 1 tbsp to tsp', () => {
+		expect(Ingredi.convertUnit(1/2, 'tbsp')).toHaveProperty('unit', 'tsp');
+		expect(Ingredi.convertUnit(.9, 'tbsp')).toHaveProperty('unit', 'tsp');
+		expect(Ingredi.convertUnit(1/17, 'c')).toHaveProperty('unit', 'tsp');
+	});
+
+	// todo: oz (need additional info to determine if weight or volume (fl oz))
+});
+
 // multiplying ranges
 describe('multiplying ranges', () => {
 
