@@ -128,17 +128,12 @@ var Ingredi = {
 	},
 
 	/**
-	 * Convert an amount from one unit to another
-	 * If the unit to convert to is not passed in the options,
-	 * automatically choose a unit that makes sense based on the amount
-	 * @param  {number} amount
-	 * @param  {string} unit
-	 * @param  {object} options
-	 * @return {object}
+	 * Get map of all units and equivalent values that a that given unit can be converted to
+	 * @param  {String} unit
+	 * @param  {Object} options
+	 * @return {Object}
 	 */
-	convertUnit: function(amount, unit, options = {}) {
-
-		let newAmount, newUnit;
+	getUnitMap: function(unit, options = {}) {
 		let defaultOptions = {
 			format: 'auto',
 			flags: '',
@@ -151,11 +146,9 @@ var Ingredi = {
 		// first standardize unit format
 		unit = this.formatUnit(unit);
 
-		// if oz and unsure if weight or volume, do not convert
-		if (unit == 'oz' && (!options.type || !options.flags.includes('liquor'))) {
-			options.format = null;
-		} else if (options.type == 'weight') {
+		if (options.type == 'weight') {
 			// weight conversion map
+			// todo: add grams?
 			unitMap = {
 				'oz': 16,
 				'lb': 1,
@@ -198,67 +191,110 @@ var Ingredi = {
 			};
 		}
 
-		// if unit to convert to was passed in options, use that
-		if (options.to) {
-			newUnit = options.to;
-		// attempt to automatically choose the unit that makes most sense based on amount
-		} else if (unitMap.hasOwnProperty('c')) {
+		return unitMap;
+	},
 
-			let amountInCups = unitMap['c'] * amount / unitMap[unit];
+	/**
+	 * Convert an amount from one unit to another
+	 * If the unit to convert to is not passed in the options,
+	 * automatically choose a unit that makes sense based on the amount
+	 * @param  {number} amount
+	 * @param  {string} unit
+	 * @param  {object} options
+	 * @return {object}
+	 */
+	convertUnit: function(amount, unit, options = {}) {
 
-			// default: c
-			newUnit = 'c';
+		let newAmount, newUnit;
+		let defaultOptions = {
+			format: 'auto',
+			flags: '',
+		};
 
-			// if >= 8 c (2 qt), use qt
-			if (amountInCups >= 8) {
-				newUnit = 'qt';
-			// if < 1 tbsp (3 tsp), use tsp
-			} else if (amountInCups < 1/16) {
-				newUnit = 'tsp';
-			// if <= 1/2 c (4 oz), use oz for liquor
-			} else if (amountInCups <= 1/2 && options.flags.includes('liquor')) {
-				newUnit = 'oz';
-			// butter units
-			} else if (options.flags.includes('butter')) {
-				// if < 1/2 c (1 stick), use tbsp
-				if (amountInCups < 1/2) {
-					newUnit = 'tbsp';
-				} else {
-					newUnit = 'stick';
-				}
-				// todo: smarter butter conversion - use 1/2 stick increments, or formats like 1 stick + 2 tbsp
-			// if < 1/4 c (4 tbsp), use tbsp
-			} else if (amountInCups < 1/4) {
-				newUnit = 'tbsp';
-			}
-		} else if (unitMap.hasOwnProperty('lb')) {
+		// merge in default options
+		options = Object.assign({}, defaultOptions, options);
 
-			let amountInOz = unitMap['oz'] * amount / unitMap[unit];
+		// first standardize unit format
+		unit = this.formatUnit(unit);
 
-			// if <= 16 oz (1 lb), use lb
-			if (amountInOz >= 16) {
-				newUnit = 'lb';
-			} else {
-				newUnit = 'oz';
-			}
+		// if converting to/from lbs, this is a weight conversion
+		if (unit == 'lb' || options.to == 'lb') {
+			options.type = 'weight';
 		}
 
-		// if both units are in the unit map, calculate the conversion factor and convert to new unit
-		if (unitMap.hasOwnProperty(unit) && unitMap.hasOwnProperty(newUnit)) {
-			let conversionFactor = unitMap[newUnit] / unitMap[unit];
-			newAmount = amount * conversionFactor;
-		// if unit is not in our map, do not convert
-		} else {
+		// if oz and unsure if weight or volume, do not convert
+		if (unit == 'oz' && (!options.type || !options.flags.includes('liquor'))) {
+			console.log('Warning: cannot convert ambiguous oz (unclear if volume or weight)');
 			newAmount = amount;
 			newUnit = unit;
-		}
+		} else {
+			// get unit map
+			let unitMap = this.getUnitMap(unit, options);
 
-		// convert to closest fraction
-		if (options.format == 'fraction') {
-			newAmount = this.toFraction(newAmount);
-		// convert to fraction or decimal
-		} else if (options.format == 'auto') {
-			newAmount = this.toFraction(newAmount, false);
+			// if unit to convert to was passed in options, use that
+			if (options.to) {
+				newUnit = options.to;
+			// attempt to automatically choose the unit that makes most sense based on amount
+			} else if (unitMap.hasOwnProperty('c')) {
+				// volume
+				let amountInCups = unitMap['c'] * amount / unitMap[unit];
+
+				// default: c
+				newUnit = 'c';
+
+				// if >= 8 c (2 qt), use qt
+				if (amountInCups >= 8) {
+					newUnit = 'qt';
+				// if < 1 tbsp (3 tsp), use tsp
+				} else if (amountInCups < 1/16) {
+					newUnit = 'tsp';
+				// if <= 1/2 c (4 oz), use oz for liquor
+				} else if (amountInCups <= 1/2 && options.flags.includes('liquor')) {
+					newUnit = 'oz';
+				// butter units
+				} else if (options.flags.includes('butter')) {
+					// if < 1/2 c (1 stick), use tbsp
+					if (amountInCups < 1/2) {
+						newUnit = 'tbsp';
+					} else {
+						newUnit = 'stick';
+					}
+					// todo: smarter butter conversion - use 1/2 stick increments, or formats like 1 stick + 2 tbsp
+				// if < 1/4 c (4 tbsp), use tbsp
+				} else if (amountInCups < 1/4) {
+					newUnit = 'tbsp';
+				}
+			} else if (unitMap.hasOwnProperty('lb')) {
+				// weight
+				let amountInOz = unitMap['oz'] * amount / unitMap[unit];
+
+				// if <= 16 oz (1 lb), use lb
+				if (amountInOz >= 16) {
+					newUnit = 'lb';
+				} else {
+					newUnit = 'oz';
+				}
+			}
+
+			// if both units are in the unit map, calculate the conversion factor and convert to new unit
+			if (unitMap.hasOwnProperty(unit) && unitMap.hasOwnProperty(newUnit)) {
+				let conversionFactor = unitMap[newUnit] / unitMap[unit];
+				newAmount = amount * conversionFactor;
+			// if unit is not in our map, do not convert
+			} else {
+				console.log(`Error: cannot convert ${unit} to ${newUnit} (incompatible units)`);
+				newAmount = amount;
+				newUnit = unit;
+			}
+
+			// convert to closest fraction
+			if (options.format == 'fraction') {
+				newAmount = this.toFraction(newAmount);
+			// convert to fraction or decimal
+			} else if (options.format == 'auto') {
+				newAmount = this.toFraction(newAmount, false);
+			}
+
 		}
 
 		return {
